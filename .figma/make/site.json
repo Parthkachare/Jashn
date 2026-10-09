@@ -1,0 +1,10 @@
+{
+  "description": "Discover and book trusted vendors for Indian celebrations with easy event planning, ready-made packages, and seamless booking management.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
