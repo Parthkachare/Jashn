@@ -25,6 +25,9 @@ button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 img { display: block; max-width: 100%; }
 p { line-height: 1.65; }
+.demo-watermark { position: fixed; z-index: 40; inset: 0; overflow: hidden; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.demo-watermark-pattern { position: absolute; top: -45vh; left: -27.5vw; display: grid; width: 155vw; height: 190vh; grid-template-columns: repeat(8, minmax(0, 1fr)); align-content: space-around; justify-items: center; transform: rotate(-30deg); }
+.demo-watermark-pattern span { color: rgb(255 255 255 / 22%); font-size: 14px; font-weight: 600; letter-spacing: .08em; line-height: 1; mix-blend-mode: difference; white-space: nowrap; }
 .shell { width: min(1180px, calc(100% - 48px)); margin-inline: auto; }
 h1, h2, h3, h4 { margin: 0; line-height: 1.15; }
 h1, h2 { font-family: "DM Serif Display", serif; font-weight: 400; }
@@ -488,4 +491,9 @@ footer { background: #292526; color: white; }
   .filter-bar { flex-direction:column; align-items:stretch; }
   .filter-bar .field:first-child { width:auto; }
   .footer-main { grid-template-columns:1fr; }
+}
+
+@media (max-width: 600px) {
+  .demo-watermark-pattern { left: -45vw; width: 190vw; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .demo-watermark-pattern span { font-size: 12px; }
 }
