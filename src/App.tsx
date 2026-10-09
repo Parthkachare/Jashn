@@ -455,6 +455,20 @@ function Footer({ go }: { go: (page: Page) => void }) {
       <div><strong>Contact</strong><p>hello@jashn.in</p><p>+91 20 4567 8900</p><p>Pune, Maharashtra</p></div>
     </div>
     <div className="footer-bottom shell">© 2025 Jashn Events. Made for celebrations across India.</div>
+    
+<div className="border-t border-gray-200 mt-8 pt-5 pb-4 text-center">
+  <p className="text-sm text-gray-500">
+    © 2026 Jashn. All rights reserved.
+  </p>
+  <p className="mt-2 text-sm text-gray-500">
+    Crafted with care by{" "}
+    <span className="font-semibold text-[#941D49]">
+      Parth Kachare
+    </span>
+    <span className="ml-1 text-[#941D49]">✦</span>
+  </p>
+</div>
+
   </footer>;
 }
 
