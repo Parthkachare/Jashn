@@ -1128,10 +1128,11 @@ function PasswordRecovery({
 
     setRequestStatus("sending");
     try {
-      const redirectUrl = new URL(PRODUCTION_PASSWORD_RESET_URL);
-      redirectUrl.searchParams.set("returnTo", returnTo);
+      const emailRedirectTo = new URL(PRODUCTION_PASSWORD_RESET_URL);
+      emailRedirectTo.searchParams.set("returnTo", returnTo);
+      console.info("Password reset redirect destination:", emailRedirectTo.toString());
       const { error: resetError } = await withTimeout(
-        supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirectUrl.toString() }),
+        supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: emailRedirectTo.toString() }),
         "Sending the reset email timed out. Please try again.",
       );
       if (resetError) throw resetError;
