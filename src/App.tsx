@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEv
 import { supabase } from "./supabase";
 
 const AUTH_LOAD_TIMEOUT_MS = 12000;
+const PRODUCTION_PASSWORD_RESET_URL = "https://jashn-nu.vercel.app/reset-password";
 
 function withTimeout<T>(operation: PromiseLike<T>, message: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -1127,7 +1128,7 @@ function PasswordRecovery({
 
     setRequestStatus("sending");
     try {
-      const redirectUrl = new URL("/reset-password", window.location.origin);
+      const redirectUrl = new URL(PRODUCTION_PASSWORD_RESET_URL);
       redirectUrl.searchParams.set("returnTo", returnTo);
       const { error: resetError } = await withTimeout(
         supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirectUrl.toString() }),
