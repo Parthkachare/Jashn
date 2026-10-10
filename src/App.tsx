@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { supabase } from "./supabase";
 
 const AUTH_LOAD_TIMEOUT_MS = 12000;
@@ -15,6 +15,7 @@ function withTimeout<T>(operation: PromiseLike<T>, message: string): Promise<T> 
 type Page =
   | "home" | "explore" | "service" | "vendor" | "packages" | "cart"
   | "checkout" | "confirmation" | "bookings" | "profile" | "login" | "signup"
+  | "forgot-password" | "reset-password"
   | "vendor-login" | "vendor-register" | "vendor-pending"
   | "vendor-dashboard" | "vendor-bookings" | "vendor-services" | "vendor-portfolio" | "vendor-profile"
   | "admin-login" | "admin-dashboard" | "admin-vendors" | "admin-users" | "admin-bookings" | "admin-services";
@@ -123,6 +124,7 @@ type PackageItem = {
 
 const photos = {
   hero: "https://images.unsplash.com/photo-1587271407850-8d438ca9fdf2?auto=format&fit=crop&w=1600&q=85",
+  venueHero: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1600&q=85",
   birthday: "https://images.unsplash.com/photo-1643175816971-a463dee6ae61?auto=format&fit=crop&w=900&q=80",
   family: "https://images.unsplash.com/photo-1728024450639-dc1b6183dbf2?auto=format&fit=crop&w=900&q=80",
   wedding: "https://images.unsplash.com/photo-1708606811579-23b18fc48007?auto=format&fit=crop&w=1000&q=80",
@@ -310,7 +312,8 @@ function readPageFromLocation(): Page {
   const page = new URLSearchParams(window.location.search).get("page");
   const knownPages: Page[] = [
     "home", "explore", "service", "vendor", "packages", "cart", "checkout",
-    "confirmation", "bookings", "profile", "login", "signup", "vendor-login",
+    "confirmation", "bookings", "profile", "login", "signup", "forgot-password",
+    "reset-password", "vendor-login",
     "vendor-register", "vendor-pending", "vendor-dashboard", "vendor-bookings",
     "vendor-services", "vendor-portfolio", "vendor-profile", "admin-login",
     "admin-dashboard", "admin-vendors", "admin-users", "admin-bookings", "admin-services",
@@ -531,6 +534,82 @@ function SearchBox({ go }: { go: (page: Page) => void }) {
   </div>;
 }
 
+const heroSlides = [
+  { image: photos.hero, alt: "Indian wedding mandap beneath a floral canopy", label: "Wedding celebrations" },
+  { image: photos.birthday, alt: "A lively birthday celebration", label: "Birthday celebrations" },
+  { image: photos.venueHero, alt: "Elegant event venue with floral decor and warm lighting", label: "Beautiful event venues" },
+];
+
+function HeroSlider() {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleChange = (event: MediaQueryListEvent) => setPrefersReducedMotion(event.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (hovered || focused || prefersReducedMotion) return;
+    const timer = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % heroSlides.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [hovered, focused, prefersReducedMotion]);
+
+  const showSlide = (index: number) => {
+    setActiveSlide((index + heroSlides.length) % heroSlides.length);
+  };
+
+  return <div
+    className="hero-image"
+    ref={sliderRef}
+    role="region"
+    aria-label="Featured celebrations"
+    aria-roledescription="carousel"
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+    onFocusCapture={() => setFocused(true)}
+    onBlurCapture={(event) => {
+      if (!sliderRef.current?.contains(event.relatedTarget as Node | null)) setFocused(false);
+    }}
+  >
+    {heroSlides.map((slide, index) => <img
+      key={slide.image}
+      className={`hero-slide${index === activeSlide ? " is-active" : ""}`}
+      src={slide.image}
+      alt={index === activeSlide ? slide.alt : ""}
+      aria-hidden={index !== activeSlide}
+      fetchPriority={index === 0 ? "high" : "auto"}
+    />)}
+    <div className="hero-slider-controls">
+      <button type="button" className="hero-slider-arrow" aria-label="Previous slide" onClick={() => showSlide(activeSlide - 1)}>
+        <Icon name="arrow" size={18} />
+      </button>
+      <div className="hero-slider-dots" role="group" aria-label="Choose a featured celebration">
+        {heroSlides.map((slide, index) => <button
+          key={slide.label}
+          type="button"
+          className={`hero-slider-dot${index === activeSlide ? " is-active" : ""}`}
+          aria-label={`Show ${slide.label}`}
+          aria-current={index === activeSlide ? "true" : undefined}
+          onClick={() => showSlide(index)}
+        />)}
+      </div>
+      <button type="button" className="hero-slider-arrow hero-slider-arrow-next" aria-label="Next slide" onClick={() => showSlide(activeSlide + 1)}>
+        <Icon name="arrow" size={18} />
+      </button>
+    </div>
+  </div>;
+}
+
 function Home({ go, onSelectService }: { go: (page: Page) => void; onSelectService?: (service: ServiceItem) => void }) {
   const celebrations = [
     ["Birthday", "Cake, decor & more"], ["Wedding", "For your big day"], ["Anniversary", "Celebrate together"],
@@ -538,7 +617,7 @@ function Home({ go, onSelectService }: { go: (page: Page) => void; onSelectServi
   ];
   return <>
     <section className="hero">
-      <div className="hero-image"><img src={photos.hero} alt="Indian wedding ceremony under a floral canopy" /></div>
+      <HeroSlider />
       <div className="hero-content shell">
         <div className="hero-copy"><Badge tone="wine">Celebrations, made simpler</Badge><Heading level={1}>Plan the whole celebration <em>in one place.</em></Heading><p>Find trusted vendors, choose the services you need, and make your event memorable without the planning headache.</p></div>
         <SearchBox go={go} />
@@ -949,11 +1028,206 @@ function Auth({
       <Field label="Email address" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
       {signup && <Field label="Phone number" placeholder="+91 98765 43210" value={phone} onChange={(event) => setPhone(event.target.value)} required />}
       <Field label="Password" type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} required />
-      {!signup && <button className="forgot">Forgot password?</button>}
+      {!signup && <button type="button" className="forgot" onClick={() => go("forgot-password")}>Forgot password?</button>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <Button full onClick={handleSubmit} disabled={loading}>{loading ? (signup ? "Creating account..." : "Logging in...") : (signup ? "Create Customer Account" : "Log In")}</Button>
       {!signup && <div className="account-switch"><span>Continue as</span><button className="active">Customer</button><button onClick={() => go("vendor-login")}>Vendor</button></div>}
       <p className="auth-link">{signup ? "Already have an account?" : "Don’t have an account?"} <button onClick={() => go(signup ? "login" : "signup")}>{signup ? "Log in" : "Create account"}</button></p>{signup && <p className="auth-link">Offering event services? <button onClick={() => go("vendor-register")}>Register as a vendor</button></p>}</section></main>;
+}
+
+function authReturnPageFromLocation(): Page {
+  const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+  return returnTo === "vendor-login" || returnTo === "admin-login" ? returnTo : "login";
+}
+
+function PasswordRecovery({
+  mode,
+  go,
+  returnTo,
+}: {
+  mode: "forgot-password" | "reset-password";
+  go: (page: Page) => void;
+  returnTo: Page;
+}) {
+  const [email, setEmail] = useState("");
+  const [requestStatus, setRequestStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [recoveryStatus, setRecoveryStatus] = useState<"checking" | "ready" | "invalid" | "updated">("checking");
+  const [error, setError] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "reset-password") return;
+    const client = supabase;
+    if (!client) {
+      setRecoveryStatus("invalid");
+      setError("Password reset is currently unavailable. Please try again later.");
+      return;
+    }
+
+    const search = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (search.has("error") || search.has("error_code") || hash.has("error") || hash.has("error_code")) {
+      setRecoveryStatus("invalid");
+      return;
+    }
+
+    let active = true;
+    let recoveryEventReceived = false;
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session) {
+        recoveryEventReceived = true;
+        if (active) {
+          setError(null);
+          setRecoveryStatus("ready");
+        }
+      }
+    });
+
+    void withTimeout(client.auth.getSession(), "Checking your reset link timed out. Please request another email.")
+      .then(({ data, error: sessionError }) => {
+        if (sessionError) throw sessionError;
+        if (!active || recoveryEventReceived) return;
+        if (data.session) {
+          setRecoveryStatus("ready");
+        } else {
+          setRecoveryStatus("invalid");
+        }
+      })
+      .catch((sessionError: unknown) => {
+        if (!active) return;
+        console.error("Unable to verify password recovery session", sessionError);
+        setError("We couldn't verify this reset link. Please request a new one.");
+        setRecoveryStatus("invalid");
+      });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [mode]);
+
+  const handleResetRequest = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (!supabase) {
+      setError("Password reset is currently unavailable. Please try again later.");
+      setRequestStatus("error");
+      return;
+    }
+
+    setRequestStatus("sending");
+    try {
+      const redirectUrl = new URL("/", window.location.origin);
+      redirectUrl.searchParams.set("page", "reset-password");
+      redirectUrl.searchParams.set("returnTo", returnTo);
+      const { error: resetError } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirectUrl.toString() }),
+        "Sending the reset email timed out. Please try again.",
+      );
+      if (resetError) throw resetError;
+      setRequestStatus("sent");
+    } catch {
+      setRequestStatus("error");
+      setError("We couldn't send the reset email. Please try again shortly.");
+    }
+  };
+
+  const handlePasswordUpdate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    if (newPassword.length < 8) {
+      setError("Your password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("The passwords do not match.");
+      return;
+    }
+    if (!supabase) {
+      setError("Password reset is currently unavailable. Please try again later.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error: updateError } = await withTimeout(
+        supabase.auth.updateUser({ password: newPassword }),
+        "Updating your password timed out. Please try again.",
+      );
+      if (updateError) {
+        if (updateError.code === "otp_expired" || updateError.code === "session_not_found" || updateError.code === "bad_jwt") {
+          setError("This reset link has expired or is invalid. Please request a new one.");
+          setRecoveryStatus("invalid");
+        } else {
+          setError("We couldn't update your password. Check that it meets the requirements and try again.");
+        }
+        return;
+      }
+      setNewPassword("");
+      setConfirmPassword("");
+      setRecoveryStatus("updated");
+    } catch {
+      setError("We couldn't update your password. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetRequest = mode === "forgot-password";
+  const title = resetRequest
+    ? "Reset your password"
+    : recoveryStatus === "invalid"
+      ? "Reset link unavailable"
+      : recoveryStatus === "updated"
+      ? "Password updated"
+      : "Choose a new password";
+  const description = resetRequest
+    ? "Enter the email address associated with your account and we’ll send you a reset link."
+    : recoveryStatus === "invalid"
+      ? "This reset link is invalid or has expired. Request another email to choose a new password."
+      : recoveryStatus === "updated"
+      ? "Your password has been changed. You can now continue to sign in."
+      : "Choose a new password for your Jashn account.";
+
+  return <main className="auth-page">
+    <section className="auth-visual"><img src={photos.weddingWide} alt="An elegant Indian wedding celebration" /><div><span>Jashn</span><Heading level={2}>Every celebration starts with peace of mind.</Heading></div></section>
+    <section className="auth-form">
+      <Logo go={go} />
+      <div><span className="eyebrow">Account security</span><Heading level={1}>{title}</Heading><p>{description}</p></div>
+      {resetRequest && <form className="recovery-form" onSubmit={handleResetRequest}>
+        <Field label="Email address" type="email" placeholder="you@example.com" value={email} onChange={(event) => {
+          setEmail(event.target.value);
+          setRequestStatus("idle");
+          setError(null);
+        }} required />
+        {requestStatus === "sent" && <p className="recovery-success" role="status">If an account exists for that email, you’ll receive a password reset link shortly.</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <Button full type="submit" disabled={requestStatus === "sending"}>{requestStatus === "sending" ? "Sending reset link..." : requestStatus === "sent" ? "Send another reset link" : "Send reset link"}</Button>
+      </form>}
+      {!resetRequest && recoveryStatus === "checking" && <p className="recovery-message" role="status">Verifying your password reset link…</p>}
+      {!resetRequest && recoveryStatus === "ready" && <form className="recovery-form" onSubmit={handlePasswordUpdate}>
+        <Field label="New password" type="password" placeholder="At least 8 characters" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+        <Field label="Confirm new password" type="password" placeholder="Enter your new password again" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <Button full type="submit" disabled={submitting}>{submitting ? "Updating password..." : "Update password"}</Button>
+      </form>}
+      {!resetRequest && recoveryStatus === "invalid" && <div className="recovery-message">
+        <p className="form-error" role="alert">{error ?? "This password reset link is invalid or has expired."}</p>
+        <Button full onClick={() => go("forgot-password")}>Request another reset link</Button>
+      </div>}
+      {!resetRequest && recoveryStatus === "updated" && <div className="recovery-message">
+        <p className="recovery-success" role="status">Your password was updated successfully.</p>
+        <Button full onClick={() => go(returnTo)}>Continue to sign in</Button>
+      </div>}
+      <p className="auth-link"><button type="button" onClick={() => go(returnTo)}>Back to {returnTo === "vendor-login" ? "vendor" : returnTo === "admin-login" ? "admin" : "customer"} login</button></p>
+    </section>
+  </main>;
 }
 
 function RoleAuth({
@@ -1014,7 +1288,7 @@ function RoleAuth({
     <section className="auth-form"><Logo go={go} /><div><span className="eyebrow">{vendor ? "Vendor workspace" : "Secure admin access"}</span><Heading level={1}>{register ? "Register your business" : vendor ? "Vendor login" : "Admin login"}</Heading><p>{register ? "Tell us the basics. Our team will review your application." : "Enter your account details to continue."}</p></div>
       {register && <><Field label="Business name" placeholder="Your registered or trading name" value={businessName} onChange={(event) => setBusinessName(event.target.value)} required /><Field label="Owner name" placeholder="Full name" value={ownerName} onChange={(event) => setOwnerName(event.target.value)} required /><Field label="Phone number" placeholder="+91 98765 43210" value={phone} onChange={(event) => setPhone(event.target.value)} required /><SelectField label="Primary category" value={category} onChange={(event) => setCategory(event.target.value)}><option>Decoration</option><option>Catering</option><option>Photography</option><option>Entertainment</option><option>Planning</option></SelectField><Field label="City" placeholder="e.g. Pune" value={city} onChange={(event) => setCity(event.target.value)} required /></>}
       <Field label="Email address" type="email" placeholder={vendor ? "business@example.com" : "admin@jashn.in"} value={email} onChange={(event) => setEmail(event.target.value)} required /><Field label="Password" type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} required />
-      {!register && <button className="forgot">Forgot password?</button>}
+      {!register && <button type="button" className="forgot" onClick={() => go("forgot-password")}>Forgot password?</button>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <Button full onClick={submit} disabled={loading}>{loading ? "Please wait..." : register ? "Submit for Approval" : "Log In"}</Button>
       {vendor && <p className="auth-link">{register ? "Already registered?" : "New to Jashn?"} <button onClick={() => go(register ? "vendor-login" : "vendor-register")}>{register ? "Vendor login" : "Register your business"}</button></p>}
@@ -2155,6 +2429,18 @@ export default function App() {
   }, []);
 
   const go = (target: Page) => {
+    if (target === "forgot-password" || target === "reset-password") {
+      const returnTo = page === "forgot-password" || page === "reset-password"
+        ? authReturnPageFromLocation()
+        : page === "vendor-login" || page === "admin-login"
+          ? page
+          : "login";
+      setPage(target);
+      window.history.replaceState({}, "", `${window.location.pathname}?page=${target}&returnTo=${returnTo}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     const protectedPages = new Set(["bookings", "checkout", "profile"]);
     if (protectedPages.has(target) && !customer?.id) {
       if (target === "checkout") setCheckoutAfterLogin(true);
@@ -2752,6 +3038,9 @@ export default function App() {
   if (page === "vendor-register") return <RoleAuth role="vendor" mode="register" go={go} onVendorRegister={handleVendorRegister}/>;
   if (page === "vendor-pending") return <VendorPending go={go} vendor={vendorRecord} status={vendorRecord?.status ?? "pending"} message={vendorRecord ? undefined : "Log in with your vendor account to check its application status."}/>;
   if (page === "admin-login") return <RoleAuth role="admin" mode="login" go={go} onAdminLogin={handleAdminLogin}/>;
+  if (page === "forgot-password" || page === "reset-password") {
+    return <PasswordRecovery mode={page} go={go} returnTo={authReturnPageFromLocation()}/>;
+  }
   if (vendorPage) {
     return <VendorAccessGate page={page} go={go}>{(access) => {
       if (page === "vendor-dashboard") return <VendorDashboard page={page} go={go} vendor={access.vendor} profile={access.profile}/>;
