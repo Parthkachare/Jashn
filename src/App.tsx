@@ -309,10 +309,28 @@ function formatCategoryLabel(label: string | null): string {
   return label && categoryOptions.includes(label) ? label : "All categories";
 }
 
+function isLoginReturnPage(value: string | null): value is "login" | "vendor-login" | "admin-login" {
+  return value === "login" || value === "vendor-login" || value === "admin-login";
+}
+
+function isPasswordRecoveryCallback(url: URL): boolean {
+  if (url.pathname.replace(/\/+$/, "") === "/reset-password") return true;
+
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const isRecoveryType = url.searchParams.get("type") === "recovery" || hashParams.get("type") === "recovery";
+  const hasRecoveryReturnTo = isLoginReturnPage(url.searchParams.get("returnTo"));
+  const hasAuthCallback = url.searchParams.has("code")
+    || url.searchParams.has("error")
+    || url.searchParams.has("error_code")
+    || hashParams.has("access_token")
+    || hashParams.has("error")
+    || hashParams.has("error_code");
+
+  return isRecoveryType || (hasRecoveryReturnTo && hasAuthCallback);
+}
+
 function readPageFromLocation(): Page {
-  if (window.location.pathname.replace(/\/+$/, "") === "/reset-password") {
-    return "reset-password";
-  }
+  if (isPasswordRecoveryCallback(new URL(window.location.href))) return "reset-password";
 
   const page = new URLSearchParams(window.location.search).get("page");
   const knownPages: Page[] = [
@@ -2388,6 +2406,15 @@ export default function App() {
     }
 
     const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session) {
+        const currentUrl = new URL(window.location.href);
+        const requestedReturnTo = currentUrl.searchParams.get("returnTo");
+        const returnTo = isLoginReturnPage(requestedReturnTo) ? requestedReturnTo : "login";
+        const resetUrl = new URL("/reset-password", window.location.origin);
+        resetUrl.searchParams.set("returnTo", returnTo);
+        window.history.replaceState({}, "", `${resetUrl.pathname}${resetUrl.search}`);
+        setPage("reset-password");
+      }
       if (event === "TOKEN_REFRESHED") return;
       const revision = trackAuthUser(session?.user.id ?? null);
       if (!session?.user) {
