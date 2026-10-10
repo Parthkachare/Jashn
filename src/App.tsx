@@ -309,6 +309,10 @@ function formatCategoryLabel(label: string | null): string {
 }
 
 function readPageFromLocation(): Page {
+  if (window.location.pathname.replace(/\/+$/, "") === "/reset-password") {
+    return "reset-password";
+  }
+
   const page = new URLSearchParams(window.location.search).get("page");
   const knownPages: Page[] = [
     "home", "explore", "service", "vendor", "packages", "cart", "checkout",
@@ -1123,8 +1127,7 @@ function PasswordRecovery({
 
     setRequestStatus("sending");
     try {
-      const redirectUrl = new URL("/", window.location.origin);
-      redirectUrl.searchParams.set("page", "reset-password");
+      const redirectUrl = new URL("/reset-password", window.location.origin);
       redirectUrl.searchParams.set("returnTo", returnTo);
       const { error: resetError } = await withTimeout(
         supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirectUrl.toString() }),
